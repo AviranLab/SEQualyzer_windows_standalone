@@ -1,0 +1,269 @@
+read_all_files <- function(files, replicates, sequence, local_coverage, session_name, probed_base, format) {
+  #validate that all labels for all replicates and channels are present and also file content
+  if (!.Platform$OS.type == "windows") registerDoParallel(cores=detectCores(all.tests=TRUE))
+  
+  tryCatch({
+    
+    if (format== "rdat") {
+      
+      conn <- file(files, open="r")
+      lin <- readLines(conn)
+      closeAllConnections()
+      
+      a <- strsplit(lin[1:50], split="\t")
+      a <- c(1:length(a))[unlist(lapply(a, function(x) if (length(grep("ANNOTATION_DATA", x))) T else F ))]
+      
+      file_m <- numeric(replicates)
+      file_p <- numeric(replicates)
+      for (i in a) {
+        if (any(strsplit(strsplit(lin[i], split="\t")[[1]][2], "__")[[1]] == "plus")) {
+          file_p[as.numeric(strsplit(strsplit(strsplit(lin[i], split="\t")[[1]][2], "__rep")[[1]][2], split="__")[[1]][1])] <- as.numeric(strsplit(strsplit(lin[i], split="\t")[[1]][1], split=":")[[1]][2])
+        }
+        if (any(strsplit(strsplit(lin[i], split="\t")[[1]][2], "__")[[1]] == "minus")) {
+          file_m[as.numeric(strsplit(strsplit(strsplit(lin[i], split="\t")[[1]][2], "__rep")[[1]][2], split="__")[[1]][1])] <- as.numeric(strsplit(strsplit(lin[i], split="\t")[[1]][1], split=":")[[1]][2])
+        }
+      }
+      
+      if (any(file_m == "") | any(file_p == "")) stop("Missing files.")
+      
+      comb <- function(a, b) {
+        c <- list(dat=list(), dat_tw=list())
+        c$dat <- merge(a$dat, b$dat)
+        for (i in 1:replicates) {
+          c$dat_tw[[paste0("avg_cov.", i)]] = c(a$dat_tw[[paste0("avg_cov.", i)]], 
+                                                b$dat_tw[[paste0("avg_cov.", i)]])
+          c$dat_tw[[paste0("all_cov.", i)]] = c(a$dat_tw[[paste0("all_cov.", i)]], 
+                                                b$dat_tw[[paste0("all_cov.", i)]])
+        }
+        
+        c$dat_tw$name <- c(a$dat_tw$name, b$dat_tw$name)
+        c$dat_tw$length <- c(a$dat_tw$length, b$dat_tw$length)
+        c$dat_tw$avg_cov <- c(a$dat_tw$avg_cov, b$dat_tw$avg_cov)
+        c$dat_tw$all_cov <- c(a$dat_tw$all_cov, b$dat_tw$all_cov)
+        
+        return(c)
+      }
+      
+      seq <- list()
+      
+      l = (2+ (replicates*(1+local_coverage)*2*2)+ (2*sequence))
+      pre_l = 2+(replicates*2)
+      
+      dat <- foreach(transcript= 1:((length(lin)-pre_l)/l), .combine=comb, .multicombine= FALSE) %dopar% {
+        t= list()
+        tw=list()
+        t_name <- strsplit(lin[l*transcript-l+pre_l+2], split="\t")[[1]][2]
+        tw$name <- t_name
+        
+        tw$length <- length(strsplit(lin[l*transcript-l+pre_l+6], split="\t")[[1]]) -1
+        t[[t_name]] <- matrix(, tw$length, 4*replicates)
+        colnames(t[[t_name]]) <- c(paste0("minus.counts.", 1:replicates),
+                                   paste0("minus.pass.", 1:replicates),
+                                   paste0("plus.counts.", 1:replicates),
+                                   paste0("plus.pass.", 1:replicates))
+        
+        if (sequence) seq[[t_name]] <- toupper(strsplit(strsplit(lin[l*transcript-l+pre_l+4], split="\t")[[1]][2], split="")[[1]])
+        for (rep in 1:replicates) {
+          t[[t_name]][, paste0("minus.counts.", rep)] <- as.numeric(strsplit(lin[l*transcript - l+pre_l+4+(2*file_m[rep])], split="\t")[[1]][-1])
+          t[[t_name]][, paste0("plus.counts.", rep)] <- as.numeric(strsplit(lin[l*transcript - l+pre_l+4+(2*file_p[rep])], split="\t")[[1]][-1])
+          if (sequence & length(probed_base)!=4) {
+            t[[t_name]][-which(seq[[t_name]] %in% probed_base), paste0("minus.counts.", rep)] <- NA
+            t[[t_name]][-which(seq[[t_name]] %in% probed_base), paste0("plus.counts.", rep)] <- NA
+          }
+          
+          tw[[paste0("all_cov.", rep)]] <- round(sum(t[[t_name]][, paste0("plus.counts.", rep)], na.rm=T))
+          
+          if (local_coverage) {
+            t[[t_name]][, paste0("minus.pass.", rep)] <- 
+              as.numeric(strsplit(lin[l*transcript - l+pre_l+4+(2*file_m[rep])+(4*replicates)], split="\t")[[1]][-1])
+            t[[t_name]][, paste0("plus.pass.", rep)] <- 
+              as.numeric(strsplit(lin[l*transcript - l+pre_l+4+(2*file_p[rep])+(4*replicates)], split="\t")[[1]][-1])
+            
+            if (sequence & length(probed_base)!=4) {
+              t[[t_name]][-which(seq[[t_name]] %in% probed_base), paste0("minus.pass.", rep)] <- NA
+              t[[t_name]][-which(seq[[t_name]] %in% probed_base), paste0("plus.pass.", rep)] <- NA
+            }
+            
+            tw[[paste0("avg_cov.", rep)]] <- round(mean(t[[t_name]][, paste0("plus.pass.", rep)], na.rm=T),
+                                                   1)
+            
+          } else {
+            
+            
+            t[[t_name]][, paste0("minus.pass.", rep)] <- 
+              mean(t[[t_name]][, paste0("minus.counts.", rep)], na.rm=T)
+            t[[t_name]][, paste0("plus.pass.", rep)] <-
+              mean(t[[t_name]][, paste0("plus.counts.", rep)], na.rm=T)
+            
+            tw[[paste0("avg_cov.", rep)]] <- round(t[[t_name]][, paste0("plus.pass.", rep)][1],
+                                                   1)
+          }
+          
+        }
+        
+        t[[t_name]] <- as.data.frame(t[[t_name]])
+        if (sequence) t[[t_name]] <- cbind(sequence= seq[[t_name]],
+                                           t[[t_name]])
+        
+        list(dat=t, dat_tw= tw)
+      }
+      
+      dat$dat_tw$avg_cov <- apply(as.data.frame(dat$dat_tw[grep("avg_cov", names(dat$dat_tw))]), 
+                                  1, function(x) round(min(x, na.rm=T), 1) )
+      dat$dat_tw$all_cov <- apply(as.data.frame(dat$dat_tw[grep("all_cov", names(dat$dat_tw))]),
+                                  1, function(x) round(min(x, na.rm=T)))
+      
+      closeAllConnections()
+      
+      if (length(dat$dat) == 0 | any(lapply(dat$dat, nrow) == 0)) stop("Invalid files")
+      save(dat, file= file.path(getwd(), "Saved_results", paste("data_", session_name, 
+                                                                ".RData", sep="") ))
+      
+      ##Generate another RData file for transcriptome-wide summaries.
+      return(list(error= "No errors.", 
+                  file= file.path(getwd(), "Saved_results", 
+                                  paste("data_", session_name , ".RData", sep="") )
+                  
+      )
+      )
+      
+    } else {
+      #Format StructureFold
+      
+      file_m <- character(replicates)
+      file_p <- character(replicates)
+      for (i in 1:length(files)) {
+        if (any(strsplit(files[i], split="__")[[1]] == "sequence")) file_seq <- files[i]
+        if (any(strsplit(files[i], split="__")[[1]] == "plus")) {
+          file_p[as.numeric(strsplit(strsplit(files[i], split="__rep")[[1]][2], split="__")[[1]][1])] <- files[i]
+        }
+        if (any(strsplit(files[i], split="__")[[1]] == "minus")) {
+          file_m[as.numeric(strsplit(strsplit(files[i], split="__rep")[[1]][2], split="__")[[1]][1])] <- files[i]
+        }
+      }
+      
+      if (any(file_m == "") | any(file_p == "") | (if (sequence) is.na(file_seq) else FALSE)) stop("Missing files.")
+      
+      if (sequence) {
+        seq <- read.fasta(file= file_seq, forceDNAtolower= F)
+      }
+      
+      l = if (local_coverage) 4 else 3     #number of lines in file per transcript
+      
+      for (rep in 1:replicates) {
+        conn_m <- file(file_m[rep], open="r")
+        conn_p <- file(file_p[rep], open="r")
+        assign(paste0("lines_m", rep), readLines(conn_m))
+        assign(paste0("lines_p", rep), readLines(conn_p))
+        
+        closeAllConnections()
+      }
+      
+      comb <- function(a, b) {
+        c <- list(dat=list(), dat_tw=list())
+        c$dat <- merge(a$dat, b$dat)
+        for (i in 1:replicates) {
+          c$dat_tw[[paste0("avg_cov.", i)]] = c(a$dat_tw[[paste0("avg_cov.", i)]], 
+                                                b$dat_tw[[paste0("avg_cov.", i)]])
+          c$dat_tw[[paste0("all_cov.", i)]] = c(a$dat_tw[[paste0("all_cov.", i)]], 
+                                                b$dat_tw[[paste0("all_cov.", i)]])
+        }
+        
+        c$dat_tw$name <- c(a$dat_tw$name, b$dat_tw$name)
+        c$dat_tw$length <- c(a$dat_tw$length, b$dat_tw$length)
+        c$dat_tw$avg_cov <- c(a$dat_tw$avg_cov, b$dat_tw$avg_cov)
+        c$dat_tw$all_cov <- c(a$dat_tw$all_cov, b$dat_tw$all_cov)
+        
+        return(c)
+      }
+      
+      dat <- foreach(transcript= 1:(length(lines_m1)/l), .combine=comb, .multicombine= FALSE) %dopar% {
+        t= list()
+        tw=list()
+        t_name <- lines_m1[l*transcript-l+1]
+        tw$name <- t_name
+        
+        tw$length <- length(if (sequence) seq[[t_name]] else as.numeric(strsplit(lines_m1[l*transcript - l+2], split="\t")[[1]]))
+        t[[t_name]] <- matrix(, tw$length, 4*replicates)
+        colnames(t[[t_name]]) <- c(paste0("minus.counts.", 1:replicates),
+                                   paste0("minus.pass.", 1:replicates),
+                                   paste0("plus.counts.", 1:replicates),
+                                   paste0("plus.pass.", 1:replicates))
+        
+        for (rep in 1:replicates) {
+          lines_m <- get(paste0("lines_m", rep)) 
+          lines_p <- get(paste0("lines_p", rep)) 
+          t[[t_name]][, paste0("minus.counts.", rep)] <- as.numeric(strsplit(lines_m[l*transcript - l+2], split="\t")[[1]])
+          t[[t_name]][, paste0("plus.counts.", rep)] <- as.numeric(strsplit(lines_p[l*transcript - l+2], split="\t")[[1]])
+          
+          if (sequence & length(probed_base)!=4) {
+            t[[t_name]][-which(seq[[t_name]] %in% probed_base), paste0("minus.counts.", rep)] <- NA
+            t[[t_name]][-which(seq[[t_name]] %in% probed_base), paste0("plus.counts.", rep)] <- NA
+          }
+          
+          tw[[paste0("all_cov.", rep)]] <- round(sum(t[[t_name]][, paste0("plus.counts.", rep)], na.rm=T))
+          
+          if (local_coverage) {
+            t[[t_name]][, paste0("minus.pass.", rep)] <- 
+              as.numeric(strsplit(lines_m[l*transcript - l+3], split="\t")[[1]])
+            t[[t_name]][, paste0("plus.pass.", rep)] <- 
+              as.numeric(strsplit(lines_p[l*transcript - l+3], split="\t")[[1]])
+            
+            if (sequence & length(probed_base)!=4) {
+              t[[t_name]][-which(seq[[t_name]] %in% probed_base), paste0("minus.pass.", rep)] <- NA
+              t[[t_name]][-which(seq[[t_name]] %in% probed_base), paste0("plus.pass.", rep)] <- NA
+            }
+            
+            tw[[paste0("avg_cov.", rep)]] <- round(mean(t[[t_name]][, paste0("plus.pass.", rep)], na.rm=T),
+                                                   1)
+            
+          } else {
+            
+            
+            t[[t_name]][, paste0("minus.pass.", rep)] <- 
+              mean(t[[t_name]][, paste0("minus.counts.", rep)], na.rm=T)
+            t[[t_name]][, paste0("plus.pass.", rep)] <-
+              mean(t[[t_name]][, paste0("plus.counts.", rep)], na.rm=T)
+            
+            tw[[paste0("avg_cov.", rep)]] <- round(t[[t_name]][, paste0("plus.pass.", rep)][1],
+                                                   1)
+          }
+          
+        }
+        
+        t[[t_name]] <- as.data.frame(t[[t_name]])
+        if (sequence) t[[t_name]] <- cbind(sequence= rmAttr(seq[[t_name]], except=NULL),
+                                           t[[t_name]])
+        
+        list(dat=t, dat_tw= tw)
+      }
+      
+      dat$dat_tw$avg_cov <- apply(as.data.frame(dat$dat_tw[grep("avg_cov", names(dat$dat_tw))]), 
+                                  1, function(x) round(min(x, na.rm=T), 1) )
+      dat$dat_tw$all_cov <- apply(as.data.frame(dat$dat_tw[grep("all_cov", names(dat$dat_tw))]),
+                                  1, function(x) round(min(x, na.rm=T)))
+      
+      closeAllConnections()
+      
+      if (length(dat$dat) == 0 | any(lapply(dat$dat, nrow) == 0)) stop("Invalid files")
+      save(dat, file= file.path(getwd(), "Saved_results", paste("data_", session_name, 
+                                                                ".RData", sep="") ))
+      
+      ##Generate another RData file for transcriptome-wide summaries.
+      return(list(error= "No errors.", 
+                  file= file.path(getwd(), "Saved_results", 
+                                  paste("data_", session_name , ".RData", sep="") )
+                  
+      )
+      )
+    }
+    
+  }, 
+  
+  error= function(e) {
+    print(e)
+    closeAllConnections()
+    print("Please check that file input is correct and all fields are filled correctly.")
+    return(list(error= "An error occured while reading the files."))
+  })
+}

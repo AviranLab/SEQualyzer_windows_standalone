@@ -1,0 +1,35 @@
+%out%                   The Opposite of '%in%'
+Closest matching        Approximate Matching
+R version               Version Information as a Character String
+ablineCI                Add Confidence Interval Lines to a Plot
+asInteger               Floating Point Numbers to Integers
+blandAltman             Bland-Altman Plot
+colClasses              Column Classes in a Dataframe
+colVars                 Form Row and Column Variances
+composition             Compose Functions
+cons                    LISP-like Functions
+createStack             Stack Operations
+diagBinom               Plot Diagnostics for Logistic Regressions
+interleave              Interleave vectors
+invDiag                 Matrix Diagonals with a useless(?) twist
+kde2dQuantile           Two-Dimensional Kernel Density Estimation
+                        Quantiles
+locf                    Last Observation Carried Forward
+makeCounter             Create and manipulate counters
+mergeV                  Verbose Merge
+nDistinct               Number of Distinct Elements
+nameToString            Convert Object Name to Character String
+outerList               Outer Product of Lists
+pairwise.chisq.test     Pairwise Chi-squared and Fisher Test
+plotCor                 Plot a Correlation Matrix
+plotDensity             Histogram and Density Plot
+plotICC                 Visualization of Intra Class Correlation
+plotScatter             Scatterplot with LOWESS Line
+qqplot2                 Quantile-Quantile Plots using arbitrary
+                        distributions.
+rDist                   Generate Random Numbers from a Gaussian Kernel
+                        Density Estimation
+rmAttr                  Remove Attributes
+timeVar                 Generate Time-Dependant Variables
+vswitch                 Element Selection from a List of Alternatives
+zipLists                Combination of Lists

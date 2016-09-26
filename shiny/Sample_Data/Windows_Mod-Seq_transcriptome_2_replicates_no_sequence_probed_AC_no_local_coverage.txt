@@ -1,0 +1,4 @@
+..\Sample_Data\Mod-Seq_Talkish_et_al_2014_single_end_transcriptome_2_replicates_WT\Scer_WT__rep1__minus__.txt
+..\Sample_Data\Mod-Seq_Talkish_et_al_2014_single_end_transcriptome_2_replicates_WT\Scer_WT__rep1__plus__.txt
+..\Sample_Data\Mod-Seq_Talkish_et_al_2014_single_end_transcriptome_2_replicates_WT\Scer_WT__rep2__minus__.txt
+..\Sample_Data\Mod-Seq_Talkish_et_al_2014_single_end_transcriptome_2_replicates_WT\Scer_WT__rep2__plus__.txt

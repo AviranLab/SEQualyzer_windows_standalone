@@ -1,0 +1,3 @@
+..\Sample_Data\SHAPE-MaP_2_transcripts_1_replicate_sequence_local_coverage\GroupII_1m7__minus__rep1__.txt
+..\Sample_Data\SHAPE-MaP_2_transcripts_1_replicate_sequence_local_coverage\GroupII_1m7__plus__rep1__.txt
+..\Sample_Data\SHAPE-MaP_2_transcripts_1_replicate_sequence_local_coverage\GroupII_1m7__sequence__.fas

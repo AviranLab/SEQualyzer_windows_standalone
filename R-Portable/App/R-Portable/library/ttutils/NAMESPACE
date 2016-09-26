@@ -1,0 +1,8 @@
+export(plotAndSave)
+export(isInteger)
+export(interval)
+export(liesWithin)
+export(check)
+S3method(print, interval)
+S3method(check, interval)
+S3method(merge, list)

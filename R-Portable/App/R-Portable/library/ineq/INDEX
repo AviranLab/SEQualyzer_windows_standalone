@@ -1,0 +1,12 @@
+Ilocos                  Income Metadata from Ilocos, Philippines
+Lasym                   Lorenz Asymmetry Coefficient
+Lc                      Lorenz Curve
+Lc.mehran               Mehran Bounds For Lorenz Curves
+Pen                     Pen's Parade
+conc                    Concentration Measures
+ineq                    Inequality Measures
+major                   Majorization
+plot.Lc                 Plot Lorenz Curve
+plot.theorLc            Plot Theoretical Lorenz Curves
+pov                     Poverty Measures
+theorLc                 Theoretical Lorenz Curves
