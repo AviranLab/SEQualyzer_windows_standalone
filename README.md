@@ -1,1 +1,3 @@
 # SEQualyzer
+
+The SEQualyzer (Structure-profiling Experiment Quality Analyzer ) platform allows users to visualize and quality control data from a wide range of structure profiling experiments. The user uploads a dataset containing read stop/mutation counts and local coverages (optional) from sequencing-based profiling experiments at each residue for one to few transcripts or a transcriptome. These counts are converted into reactivity scores using a reconstruction scheme chosen by the user. The quality and variability of these scores are then evaluated using several quantitative and visual metrics. Code for SEQualyzer is written in R Shiny interactive application framework and can be downloaded along with a user manual and sample datasets. 
